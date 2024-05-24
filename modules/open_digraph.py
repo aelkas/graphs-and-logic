@@ -4,49 +4,10 @@ import sys
 sys.path[0] = os.path.abspath(os.path.join(sys.path[0], '..'))
 from modules.open_digraph_paths_distance_mx import open_digraph_paths_distance
 from modules.open_digraph_composition_mx import open_digraph_composition
-from modules.node import node
+from modules.node import *
 from modules.matrix_operations import *
 
 
-#3#
-def graph_from_adjacency_matrix(mat , inp = 0 , out = 0,number_generator = 0.5):
-    """ 
-    Generate a graph from an adjacency matrix with the number input and output nodes.
-
-    Parameters:
-    -----------
-    mat (list list): A square representing the adjacency matrix of the graph.
-    inp (int): Number of input nodes. Default is 0.
-    out (int): Number of output nodes. Default is 0.
-    number_generator (function): A function that generates random numbers. 
-                                 Default is a function generating numbers from a beta distribution.
-
-    Returns:
-    --------
-    open.diGraph: A directed graph generated from the provided adjacency matrix,
-                       with optional input and output nodes.
-    """
-    assert len(mat[0])==len(mat) , "matrix dimensions not n x n"
-    graph = open_digraph([],[],[])
-    nodelistIDS= {i:node(i,"",{},{}) for i in range(len(mat[0]))}
-    graph.nodes= nodelistIDS
-    N = range(len(mat[0]))
-    for i in N:
-        for j in N:
-            if mat[i][j]!=0:
-                graph.add_edge(i,j,mat[i][j])
-    
-    ids = list(graph.get_node_ids()).copy()
-    for i in range(inp):
-        choice = random.choice(ids)
-        graph.add_input_id(choice)
-        ids.remove(choice)
-        
-    for i in range(out):
-        choice = random.choice(ids)
-        graph.add_output_id(choice)
-        ids.remove(choice)
-    return graph
 
 
 class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for open directed graph
@@ -216,9 +177,9 @@ class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for 
         p_ids = list(parents.keys())
         c_ids = list(children.keys())
         r = p_ids + c_ids
-        assert ( (elem not in self.nodes.keys()) for elem in r)
+        assert r==[] or all(elem in self.nodes.keys() for elem in r)
         new_ID= self.new_id()
-        new_node = node(new_ID,label=label , parents= {} , children={})
+        new_node = node(new_ID,label , {} , {})
         self.nodes[new_ID] = new_node
         
         
@@ -229,7 +190,6 @@ class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for 
         mult = list(parents.values()) + list(children.values())
         self.add_edges(total,mult)
         return new_ID
-    
     
     
     def remove_edge(self, src, tgt):
@@ -401,6 +361,7 @@ class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for 
         assert child_id in self.nodes.keys() , "Node connected to input doesn't exist."
         new_inp = self.add_node(children={child_id: 1})
         self.add_input_id(new_inp)
+        return new_inp
     
     def add_output_node(self , par_id):
         """
@@ -410,6 +371,7 @@ class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for 
         
         new_out = self.add_node(parents={par_id: 1})
         self.add_output_id(new_out)
+        return new_out
     
     
     def copy(self):
@@ -459,6 +421,47 @@ class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for 
                 if node_j.get_id() in children_ids:
                     mat[i][j] = children_ids[node_j.get_id()]      
         return mat
+    
+    #3#
+    @classmethod
+    def graph_from_adjacency_matrix(cls,mat , inp = 0 , out = 0,number_generator = 0.5):
+        """ 
+        Generate a graph from an adjacency matrix with the number input and output nodes.
+
+        Parameters:
+        -----------
+        mat (list list): A square representing the adjacency matrix of the graph.
+        inp (int): Number of input nodes. Default is 0.
+        out (int): Number of output nodes. Default is 0.
+        number_generator (function): A function that generates random numbers. 
+                                    Default is a function generating numbers from a beta distribution.
+
+        Returns:
+        --------
+        open.diGraph: A directed graph generated from the provided adjacency matrix,
+                        with optional input and output nodes.
+        """
+        assert len(mat[0])==len(mat) , "matrix dimensions not n x n"
+        graph = cls.empty()
+        nodelistIDS= {i:node(i,"",{},{}) for i in range(len(mat[0]))}
+        graph.nodes= nodelistIDS
+        N = range(len(mat[0]))
+        for i in N:
+            for j in N:
+                if mat[i][j]!=0:
+                    graph.add_edge(i,j,mat[i][j])
+        
+        ids = list(graph.get_node_ids()).copy()
+        for i in range(inp):
+            choice = random.choice(ids)
+            graph.add_input_id(choice)
+            ids.remove(choice)
+            
+        for i in range(out):
+            choice = random.choice(ids)
+            graph.add_output_id(choice)
+            ids.remove(choice)
+        return graph
 
     #3#
     @classmethod
@@ -482,19 +485,19 @@ class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for 
                 The graph associated to the adjacency matrix
         """
         if form=="free":
-            return graph_from_adjacency_matrix(random_int_matrix(n,bound,False), inp = inputs , out = outputs, number_generator=number_generator) 
+            return cls.graph_from_adjacency_matrix(random_int_matrix(n,bound,False), inp = inputs , out = outputs, number_generator=number_generator) 
         elif form=="DAG":
-            return graph_from_adjacency_matrix(random_dag_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
+            return cls.graph_from_adjacency_matrix(random_dag_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
         elif form=="oriented": 
-            return graph_from_adjacency_matrix(random_oriented_int_matrix(n,bound,False), inp = inputs , out = outputs, number_generator=number_generator)
+            return cls.graph_from_adjacency_matrix(random_oriented_int_matrix(n,bound,False), inp = inputs , out = outputs, number_generator=number_generator)
         elif form=="loop-free": 
-            return graph_from_adjacency_matrix(random_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
+            return cls.graph_from_adjacency_matrix(random_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
         elif form=="undirected":
-            return graph_from_adjacency_matrix(random_symetric_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
+            return cls.graph_from_adjacency_matrix(random_symetric_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
         elif form=="loop-free undirected":
-            return  graph_from_adjacency_matrix(random_symetric_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
+            return  cls.graph_from_adjacency_matrix(random_symetric_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
         elif form=="loop-free oriented": 
-            return graph_from_adjacency_matrix(random_oriented_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
+            return cls.graph_from_adjacency_matrix(random_oriented_int_matrix(n,bound), inp = inputs , out = outputs, number_generator=number_generator)
         else : return [[]]
 
     def save_as_dot_file(self, path, verbose = True):
@@ -513,30 +516,66 @@ class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for 
             -------
                 .dot file representing the graph
         """
-        assert path[-4:] == ".dot" , "Not the right extension"
-        s = "digraph G {\n"
-        edges = ""
+        assert path[-4:] == ".dot", "Not the right extension"
+        s = "digraph G {\n    rankdir=TB;\n\n"
+
+        # Taking care of inputs
+        s += "    {\n        rank = same;\n"
+        for iden in self.get_inputs_ids():
+            if iden in self.get_node_ids():
+                node = self.get_node_by_id(iden)
+                s += f'        v{iden} [label="{node.get_label()}'
+                if verbose:
+                    s+= f'\id={iden}'
+                s+='", shape=none, input=True, output=False, color=green];\n'
+        s += "    }\n\n"
+
+        # Nodes
         for iden, node in self.nodes.items():
-            s += f'v{iden} [label="{node.get_label()}'
-            if verbose:
-                s += f"\nid={iden}"
-            if iden in self.inputs:
-                s+= f' ",input={True} ,output={False} '
-            elif iden in self.outputs:
-                s+= f'",input={False},output={True}'
+            if iden in self.get_inputs_ids() or iden in self.get_outputs_ids():
+                continue
+            if node.get_label()=="":
+                s += f'    v{iden} [label="'
+                if verbose:
+                    s+= f'{iden}'
+                s+= f'", shape=circle, width=0.4, height=0.4, fixedsize=true, input=False, output=False];\n'
             else:
-                s+= f'",input={False},output={False}'
-            s += "];\n"
+                s += f'    v{iden} [label="{node.get_label()}'
+                if verbose:
+                    s+= f'\nid={iden}'
+                s+=f'", input=False, output=False];\n'
+                
+
+        # Outputs
+        s += "\n    {\n        rank = same;\n"
+        for iden in self.get_outputs_ids():
+            if iden in self.get_node_ids():
+                node = self.get_node_by_id(iden)
+                s += f'        v{iden} [label="{node.get_label()}'
+                if verbose:
+                    s+= f'\nid={iden}'
+                s+='", shape=none, input=False, output=True, color=red];\n'
+        s += "    }\n"
+
+        # Adding edges
+        for iden, node in self.get_id_node_map().items():
             for child in node.get_children():
-                edges += f"v{iden} -> v{child};\n"
-        edges += "}"
-        
-        f = open(path, "w")
-        f.write(s + edges)
-        f.close()
+                s += f"    v{iden} -> v{child}"
+                if iden in self.get_inputs_ids():
+                    s += "[color=green]"
+                elif child in self.get_outputs_ids():
+                    s += "[color=red]"
+                s += ";\n"
+            
+
+        s += "}\n"
+
+        with open(path, "w") as f:
+            f.write(s)
 
 
-    def display_graph(self,verbose=False):
+
+    def display_graph(self , name="display" ,verbose=False):
         """
             Displays the graph using the .dot format after converting it to pdf
             Both the .dot and pdf file will be stored in the current directory
@@ -551,14 +590,14 @@ class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for 
             -------
                 Display of the graph's representation in pdf
         """
-        self.save_as_dot_file("display.dot",verbose = verbose)
-        os.system("dot -Tpdf display.dot -o display.pdf ")
+        self.save_as_dot_file(f"{name}.dot",verbose = verbose)
+        os.system(f"dot -Tpdf {name}.dot -o {name}.pdf")
         if sys.platform.startswith('win'):
-            os.system("icacls display.pdf  /grant %USERNAME%:F")
+            os.system(f"icacls {name}  /grant %USERNAME%:F")
         elif sys.platform.startswith('linux'):
-            os.system("chmod 777 display.pdf")
+            os.system(f"chmod 777 {name}")
         
-        os.system("explorer.exe display.pdf")
+        os.system(f"explorer.exe {name}")
 
 
     @classmethod
@@ -714,39 +753,3 @@ class open_digraph(open_digraph_paths_distance,open_digraph_composition): # for 
                 if c != node_id:                 #avoids reflexive edges if node is child of other
                     self.add_edge(node_id,c,m=mult)
             self.remove_node_by_id(other_id)
-
-
-
-
-
-# #usual graph for testing
-# n02 = [node(0, '0', {}, {2:1}) , node(1, 'ss', {}, {3:1}),node(2, 'zs', {0:1}, {4:3}),node(3, 'ee', {1:1}, {4:2}) , node(4, '5', {2:3,3:2}, {5:1}),node(5, '&', {4:1}, {})]
-# inp2= [0,1]
-# outputs2 = [5]
-# gtest1 = open_digraph(inp2,outputs2,n02)
-# #gtest1.display_graph()
-# print(gtest1.topological_sort())
-
-# #graph of session 8
-# n03 = [node(0, '0', {}, {3:1}),node(1, '1', {}, {4:1,5:1,8:1}),node(2, '2', {}, {4:1}),
-#        node(3, '3', {0:1}, {5:1,6:1,7:1}),node(4, '4', {1:1,2:1}, {6:1}),node(5, '5', {1:1,3:1}, {7:1}),
-#        node(6, '6', {3:1,4:1}, {8:1,9:1}),node(7, '7', {3:1,5:1}, {}),node(8, '8', {1:1,6:1}, {}),
-#        node(9,'9',{6:1},{})]
-
-# gtest2 = open_digraph([],[],n03)
-# #gtest2.display_graph()
-# print(gtest2.topological_sort())
-# print(gtest2.longest_path(1,5))
-# #graph of session 8 with one cycle between 9 and 2
-# n03 = [node(0, '0', {}, {3:1}),node(1, '1', {}, {4:1,5:1,8:1}),node(2, '2', {9:1}, {4:1}),
-#        node(3, '3', {0:1}, {5:1,6:1,7:1}),node(4, '4', {1:1,2:1}, {6:1}),node(5, '5', {1:1,3:1}, {7:1}),
-#        node(6, '6', {3:1,4:1}, {8:1,9:1}),node(7, '7', {3:1,5:1}, {}),node(8, '8', {1:1,6:1}, {}),
-#        node(9,'9',{6:1},{2:1})]
-# gtest3 = open_digraph([],[],n03)
-# print(gtest3.topological_sort())
-
-# #graph that is auto cyclic
-# gtest3 = open_digraph([],[],[node(0
-# ,'0',{0:1},{0:1})])
-# print(gtest3.topological_sort())
-
